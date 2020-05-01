@@ -35,17 +35,20 @@ abstract class AbstractMigration
     protected $table = '';
 
     /**
-     * AbstractMigration constructor.
+     * Migration constructor.
      *
      * @param PDO|Connection|null $connection
      */
-    public function __construct($connection = null)
+    final public function __construct($connection = null)
     {
-        if ($connection instanceof Connection) {
-            $this->connection = $connection->getAdapter();
-        } else {
-            $this->connection = $connection;
+        $this->connection = $connection;
+
+        if ($this->connection instanceof Connection) {
+            $this->connection = $this->connection->getAdapter();
+        } elseif ($this->connection !== null && !$this->connection instanceof PDO) {
+            throw new \InvalidArgumentException('Unsupported connection type');
         }
+
         $this->clear();
     }
 
@@ -65,29 +68,47 @@ abstract class AbstractMigration
     }
 
     /**
-     * Truncate the table
+     *  Retrieve a database connection driver name.
+     *
+     * @return string
      */
-    public function clear()
+    public function getDriverName(): string
     {
-        if ($this->connection) {
-            $driver     = $this
-                ->connection
-                ->getAttribute(PDO::ATTR_DRIVER_NAME)
-            ;
-            if ($driver === 'mysql') {
-                $this->connection->exec(
-                    'truncate table ' . $this->table . ';'
-                );
-            } elseif ($driver === 'sqlite') {
-                $this->connection->exec(
-                    'delete from ' . $this->table . ';'
-                );
-            } else {
-                $this->connection->exec(
-                    'truncate table ' . $this->table . ' cascade;'
-                );
-            }
+        if (!$this->connection) {
+            return '';
         }
+
+        return $this
+            ->connection
+            ->getAttribute(PDO::ATTR_DRIVER_NAME);
+    }
+
+    /**
+     * Truncate the table
+     *
+     * @return int The number of rows that were affected
+     */
+    public function clear(): int
+    {
+        if (!$this->connection) {
+            return 0;
+        }
+
+        $driver = $this->getDriverName();
+
+        if ($driver === 'mysql') {
+            return $this->connection->exec(
+                'truncate table ' . $this->table . ';'
+            );
+        } elseif ($driver === 'sqlite') {
+            return $this->connection->exec(
+                'delete from ' . $this->table . ';'
+            );
+        }
+
+        return $this->connection->exec(
+            'truncate table ' . $this->table . ' cascade;'
+        );
     }
 
     /**

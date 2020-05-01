@@ -162,12 +162,21 @@ class QueryCest
         $migration  = new InvoicesMigration($connection);
 
         for ($counter = 1; $counter <= 50; $counter++) {
-            $migration->insert(
+            $result = $migration->insert(
                 $counter,
                 1,
                 1,
                 uniqid('inv-')
             );
+
+            if ($result === 0) {
+                throw new \RuntimeException(
+                    sprintf(
+                        'Unable to seed the database using %s driver. Check database connection',
+                        $migration->getDriverName()
+                    )
+                );
+            }
         }
     }
 }
