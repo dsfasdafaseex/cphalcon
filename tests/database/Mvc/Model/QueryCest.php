@@ -57,13 +57,46 @@ class QueryCest
         $this->addTestData($I);
 
         $query = Customers::query();
-        $query->limit(20, 0);//I have 50 rows in my db
+        $query->limit(20, 0);
         $resultsets = $query->execute();
 
+        $I->assertEquals(20, $resultsets->count());
         foreach ($resultsets as $resultset) {
             $I->assertInstanceOf(Customers::class, $resultset);
         }
     }
+
+    /**
+     * Tests Phalcon\Mvc\Model :: query() - Issue 14535
+     *
+     * @author Phalcon Team <team@phalcon.io>
+     * @since  2020-05-01
+     * @issue  14535
+     *
+     * @group  sqlite
+     */
+    // public function mvcModelQueryIssue14535(DatabaseTester $I)
+    // {
+    //     $I->wantToTest('Mvc\Model - query()');
+    //     $this->addTestData($I);
+
+    //     $query = Customers::query();
+    //     $query->columns(
+    //         [
+    //             'Customer ID' => 'cst_id',
+    //             'Stätûs'      => 'cst_status_flag',
+    //         ]
+    //     );
+    //     $query->limit(1, 0);
+    //     $resultsets = $query->execute();
+
+    //     $I->assertEquals(1, $resultsets->count());
+
+    //     foreach ($resultsets as $resultset) {
+    //         $I->assertTrue(isset($resultset['Customer ID']));
+    //         $I->assertTrue(isset($resultset['']));
+    //     }
+    // }
 
     /**
      * Tests Phalcon\Mvc\Model :: query() - Issue 14783
@@ -94,9 +127,10 @@ class QueryCest
             'join_1.inv_cst_id = ' . CustomersKeepSnapshots::class . '.cst_id',
             'join_1'
         );
-        $query->limit(20, 0);//I have 50 rows in my db
+        $query->limit(20, 0);
         $resultsets = $query->execute();
 
+        $I->assertEquals(20, $resultsets->count());
         foreach ($resultsets as $resultset) {
             $model = $this->transform($resultset);
             $I->assertInstanceOf(CustomersKeepSnapshots::class, $model);
