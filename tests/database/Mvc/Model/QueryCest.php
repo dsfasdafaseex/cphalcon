@@ -5,8 +5,8 @@
  *
  * (c) Phalcon Team <team@phalcon.io>
  *
- * For the full copyright and license information, please view the LICENSE.txt
- * file that was distributed with this source code.
+ * For the full copyright and license information, please view the
+ * LICENSE.txt file that was distributed with this source code.
  */
 
 declare(strict_types=1);
@@ -14,6 +14,8 @@ declare(strict_types=1);
 namespace Phalcon\Test\Database\Mvc\Model;
 
 use DatabaseTester;
+use PDO;
+use Phalcon\Storage\Exception;
 use Phalcon\Test\Fixtures\Migrations\InvoicesMigration;
 use Phalcon\Test\Fixtures\Traits\DiTrait;
 use Phalcon\Test\Fixtures\Traits\RecordsTrait;
@@ -31,18 +33,23 @@ class QueryCest
     use DiTrait;
     use RecordsTrait;
 
-    public function _before(DatabaseTester $I)
+    public function _before(DatabaseTester $I): void
     {
-        $this->setNewFactoryDefault();
+        try {
+            $this->setNewFactoryDefault();
+        } catch (Exception $e) {
+            $I->fail($e->getMessage());
+        }
+
         $this->setDatabase($I);
 
-        /** @var PDO $connection */
-        $connection = $I->getConnection();
-        (new InvoicesMigration($connection));
+        (new InvoicesMigration($I->getConnection()));
     }
 
     /**
      * Tests Phalcon\Mvc\Model :: query()
+     *
+     * @param DatabaseTester $I
      *
      * @author Phalcon Team <team@phalcon.io>
      * @since  2018-11-13
@@ -57,9 +64,10 @@ class QueryCest
         $this->addTestData($I);
 
         $query = Customers::query();
-        $query->limit(20, 0);//I have 50 rows in my db
+        $query->limit(20, 0);
         $resultsets = $query->execute();
 
+        $I->assertCount(20, $resultsets->toArray());
         foreach ($resultsets as $resultset) {
             $I->assertInstanceOf(Customers::class, $resultset);
         }
@@ -67,6 +75,8 @@ class QueryCest
 
     /**
      * Tests Phalcon\Mvc\Model :: query() - Issue 14783
+     *
+     * @param DatabaseTester $I
      *
      * @author Phalcon Team <team@phalcon.io>
      * @since  2018-11-13
@@ -94,9 +104,10 @@ class QueryCest
             'join_1.inv_cst_id = ' . CustomersKeepSnapshots::class . '.cst_id',
             'join_1'
         );
-        $query->limit(20, 0);//I have 50 rows in my db
+        $query->limit(20, 0);
         $resultsets = $query->execute();
 
+        $I->assertCount(20, $resultsets->toArray());
         foreach ($resultsets as $resultset) {
             $model = $this->transform($resultset);
             $I->assertInstanceOf(CustomersKeepSnapshots::class, $model);
@@ -122,18 +133,28 @@ class QueryCest
         return $invoice;
     }
 
-    private function addTestData(DatabaseTester $I)
+    /**
+     * Seed Invoices' table by some data.
+     *
+     * @param DatabaseTester $I
+     * @return void
+     */
+    private function addTestData(DatabaseTester $I): void
     {
         $connection = $I->getConnection();
         $migration  = new InvoicesMigration($connection);
 
         for ($counter = 1; $counter <= 50; $counter++) {
-            $migration->insert(
-                $counter,
-                1,
-                1,
-                uniqid('inv-')
-            );
+            if (!$migration->insert($counter, 1, 1, uniqid('inv-', true))) {
+                $I->fail(
+                    sprintf(
+                        "Failed to insert row #%d into table '%s' using '%s' driver",
+                        $counter,
+                        $migration->getTable(),
+                        $migration->getDriverName()
+                    )
+                );
+            }
         }
     }
 }
